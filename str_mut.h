@@ -5,15 +5,17 @@
 #include <numeric>
 #include <algorithm>
 #include <cstdint>
+#include "str_common.h"
 #include "str_ref.h"
 
 namespace alt {
 
 namespace detail {
-	size_t get_next_size(size_t current, size_t required){
+
+	inline size_t get_next_size(size_t current, size_t required){
 		current = std::max<size_t>(current, 32);
 		while(current < required){
-			current *= 1.5;
+			current <<= 2;
 		}
 		return current;
 	}
@@ -23,11 +25,11 @@ template<class T>
 class TStrMut {
 	static constexpr size_t LOCAL_SZ = (28 - sizeof(T*)) / sizeof(T);
 public:
-	TStrMut() = default;
+	TStrMut() : ptr(local_str), used_size(0) {}
 		
 	template<size_t N>
 	TStrMut(const T (&ref)[N], typename std::enable_if<!(N <= LOCAL_SZ)>::type* = 0)
-	: ptr(new T[N])
+	: ptr(new T[detail::get_next_size(0, N)])
 	, used_size(N-1)
 	, allocated_size(N) {
 		memcpy(ptr, &ref, N * sizeof(T));
@@ -41,7 +43,7 @@ public:
 	}
 	
 	TStrMut(const T* t, size_t sz)
-	: ptr(sz > LOCAL_SZ ? new T[sz+1] : local_str)
+	: ptr(sz > LOCAL_SZ ? new T[detail::get_next_size(0, sz+1)] : local_str)
 	, used_size(sz){
 		memcpy(ptr, t, sz * sizeof(T));
 		ptr[used_size] = 0;
@@ -90,13 +92,11 @@ public:
 	void reserve(size_t amount){
 		const bool using_local = ptr == local_str;
 		const size_t limit = using_local ? LOCAL_SZ : allocated_size;
-		
+
 		if(amount >= limit){
 			const size_t new_size = detail::get_next_size(limit, amount + 1);
-			
 			T* new_ptr = new T[new_size];
 			memcpy(new_ptr, ptr, (1 + used_size) * sizeof(T));
-			
 			if(!using_local) delete [] ptr;
 			ptr = new_ptr;
 			allocated_size = new_size;
@@ -106,7 +106,7 @@ public:
 	void insert(size_t index, const TStrRef<T>& str){
 		const size_t _sz = str.size();
 		reserve(used_size + _sz);
-		if(index != used_size) memmove(ptr + index + _sz, ptr + index, (used_size - index) * sizeof(T));
+		memmove(ptr + index + _sz, ptr + index, (used_size - index) * sizeof(T));
 		memcpy(ptr + index, str.data(), _sz * sizeof(T));
 		used_size += _sz;
 		ptr[used_size] = 0;
@@ -115,16 +115,19 @@ public:
 	void erase(size_t index, size_t count){
 		erase(ptr + index, ptr + index + count);
 	}
+	
 	void erase(T* _begin, T* _end){
-		if(_end != end()){
-			memmove(_begin, _end, (end() - _end) * sizeof(T));
-		}
+		memmove(_begin, _end, (end() - _end) * sizeof(T));
 		used_size -= _end - _begin;
 		ptr[used_size] = 0;
 	}
 	
 	void append(const TStrRef<T>& str){
-		insert(used_size, str);
+		const size_t _sz = str.size();
+		reserve(used_size + _sz);
+		memcpy(ptr + used_size, str.data(), _sz * sizeof(T));
+		used_size += _sz;
+		ptr[used_size] = 0;
 	}
 	
 	void append(std::initializer_list<TStrRef<T>> strs){
@@ -157,78 +160,38 @@ public:
 	}
 		
 	void replace(size_t index, size_t count, const TStrRef<T>& str){
-		replace(ptr + index, ptr + index + count, str);
-	}
-	void replace(T* _begin, T* _end, const TStrRef<T>& str){
 		const size_t _sz = str.size();
-		std::ptrdiff_t diff = _sz - (_end - _begin);
+		const int diff = _sz - count;
+
 		reserve(used_size + diff);
+		T *_begin = ptr + index, *_end = ptr + index + count;
 		if(diff != 0){
-			memmove(_begin + _sz, _end, (used_size - (_end - ptr)) * sizeof(T));
+			memmove(_begin + _sz, _end, (end() - _end) * sizeof(T));
 			used_size += diff;
 			ptr[used_size] = 0;
 		}
 		memcpy(_begin, str.data(), _sz * sizeof(T));
 	}
 	
-	char* find(char needle, size_t offset = 0){
-		char* p = begin() + offset;
-		for(; p != end(); ++p){
-			if(*p == needle) return p;
-		}
-		return nullptr;
+	void replace(T* _begin, T* _end, const TStrRef<T>& str){
+		replace(_begin - ptr, _end - _begin, str);
 	}
-	
-	char* rfind(char needle, size_t offset = 0){
-		char* p = end() - offset;
-		for(; p != begin(); --p){
-			if(*p == needle) return p;
-		}
-		return nullptr;
-	}
-	
+		
 	char* find(const TStrRef<T>& needle, size_t offset = 0){
-		const size_t _sz = needle.size();
-		char *_begin = begin() + offset, *_end = _begin + _sz;
-		
-		while(_end <= end()){
-			if(substr(_begin, _end) == needle) return _begin;
-			++_begin;
-			++_end;
-		}
-		
-		return nullptr;
+		return detail::str_find(needle, begin() + offset, end(), +1);
 	}
 	
 	char* rfind(const TStrRef<T>& needle, size_t offset = 0){
 		const size_t _sz = needle.size();
-		char *_begin = end() - _sz - offset, *_end = end() - offset;
-		
-		while(_begin >= begin()){
-			if(substr(_begin, _end) == needle) return _begin;
-			--_begin;
-			--_end;
-		}
-		
-		return nullptr;
+		return detail::str_find(needle, end() - _sz - offset, begin() + _sz - 1, -1);
 	}
 	
 	char* find_any(const TStrRef<T>& chars, size_t offset = 0){
-		for(char* p = begin() + offset; p <= end(); ++p){
-			for(char c : chars){
-				if(*p == c) return p;
-			}
-		}
-		return nullptr;
+		return detail::str_find_any(chars, begin() + offset, end(), +1);
 	}
 	
 	char* rfind_any(const TStrRef<T>& chars, size_t offset = 0){
-		for(char* p = end() - offset; p >= begin(); --p){
-			for(char c : chars){
-				if(*p == c) return p;
-			}
-		}
-		return nullptr;
+		return detail::str_find_any(chars, end() - offset, begin(), -1);
 	}
 	
 	bool cmp(const TStrRef<T>& other) const {

@@ -15,11 +15,13 @@ size_t StrLen(const T* ptr){
 template<class T>
 struct TStrRef {
 	TStrRef() = default;
+	
 	template<size_t N>
 	constexpr TStrRef(const T (&p)[N]) : p(p), sz(N-1){}
-	TStrRef(const T* p) : p(p), sz(StrLen<T>(p)){}
-	TStrRef(const T* p, size_t sz) : p(p), sz(sz){}
-	TStrRef(const T* a, const T* b) : p(a), sz(b - a){}
+	constexpr TStrRef(const T* p, size_t sz) : p(p), sz(sz){}
+	constexpr TStrRef(char* p) : p(p), sz(StrLen<T>(p)){}
+	constexpr TStrRef(const T* a, const T* b) : p(a), sz(b - a){}
+	constexpr TStrRef(const char& c) : p(&c), sz(1){}
 
 	template<class F>
 	void pass_c_str(F&& func) const {
@@ -33,6 +35,11 @@ struct TStrRef {
 		if(use_heap) delete [] buf;		
 	}
 	
+	char* find(const TStrRef<T>& needle, size_t offset = 0);	
+	char* rfind(const TStrRef<T>& needle, size_t offset = 0);
+	char* find_any(const TStrRef<T>& chars, size_t offset = 0);
+	char* rfind_any(const TStrRef<T>& chars, size_t offset = 0);
+	
 	bool cmp(const TStrRef<T>& other) const {
 		return size() == other.size() && memcmp(p, other.data(), size() * sizeof(T)) == 0;
 	}
@@ -40,13 +47,13 @@ struct TStrRef {
 	bool operator==(const TStrRef<T>& other) const { return cmp(other); }
 	bool operator!=(const TStrRef<T>& other) const { return !cmp(other); }
 	
-	const T* data() const { return p; }
-	const T* begin() const { return p; }
-	const T* end() const { return p + sz; }
-	const T& operator[](size_t i){ return p[i]; }
+	constexpr const T* data() const { return p; }
+	constexpr const T* begin() const { return p; }
+	constexpr const T* end() const { return p + sz; }
+	constexpr const T& operator[](size_t i){ return p[i]; }
 	
-	const size_t size() const { return sz; }
-	const int sizei() const { return static_cast<int>(sz); }
+	constexpr size_t size() const { return sz; }
+	constexpr int sizei() const { return static_cast<int>(sz); }
 private:
 	const T* p;
 	size_t sz;

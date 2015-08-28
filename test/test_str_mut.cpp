@@ -10,7 +10,7 @@
 	if(obj == expect){ \
 		std::cout << "Ok." << std::endl; \
 	} else { \
-		std::cout << "Error!\n\tExpected " << expect << " Got " << obj << std::endl; \
+		std::cout << "Error!\n\tExpected '" << expect << "' Got '" << obj << "'" << std::endl; \
 		exit(1); \
 	} \
 })
