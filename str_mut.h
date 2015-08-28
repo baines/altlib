@@ -66,14 +66,14 @@ public:
 			other.ptr = other.local_str;
 		} else {
 			reserve(used_size);
-			memcpy(ptr, other.ptr, other.used_size);
+			memcpy(ptr, other.ptr, other.used_size * sizeof(T));
 		}
 	}
 	
 	TStrMut<T>& operator=(const TStrMut<T>& other){
 		used_size = other.size();
 		reserve(used_size);
-		memcpy(ptr, other.c_str(), used_size);
+		memcpy(ptr, other.c_str(), used_size * sizeof(T));
 		ptr[used_size] = 0;
 	}
 	
@@ -81,7 +81,7 @@ public:
 	TStrMut<T>& operator=(const char (&other)[N]){
 		used_size = N-1;
 		reserve(used_size);
-		memcpy(ptr, &other, used_size);
+		memcpy(ptr, &other, used_size * sizeof(T));
 		ptr[used_size] = 0;
 	}
 		
@@ -153,7 +153,7 @@ public:
 		
 		reserve(used_size + (_sz * num));
 		while(num--){
-			memcpy(ptr + used_size, _data, _sz);
+			memcpy(ptr + used_size, _data, _sz * sizeof(T));
 			used_size += _sz;
 		}
 		ptr[used_size] = 0;
