@@ -5,25 +5,14 @@
 
 namespace alt {
 namespace detail {
-template<class T>
-size_t StrLen(const T* ptr){
-	const T* p = ptr;
-	while(*p) ++p;
-	return p - ptr;
-}
+	template<class T>
+	size_t StrLen(const T* ptr){
+		const T* p = ptr;
+		while(*p) ++p;
+		return p - ptr;
+	}
 
-template<class T>
-using enable_if_result_void = typename std::enable_if<
-	std::is_same<void, typename std::result_of<T>::type>::value,
-	typename std::result_of<T>::type
->;
-
-template<class T>
-using enable_if_result_not_void = typename std::enable_if<
-	!std::is_same<void, typename std::result_of<T>::type>::value,
-	typename std::result_of<T>::type
->;
-
+	static const size_t STR_REF_ALLOCA_LIMIT = 1024;
 }
 
 template<class T>
@@ -45,29 +34,21 @@ struct TStrRef {
 	constexpr TStrRef(const U* const& p) : p(p), sz(detail::StrLen<T>(p)){}
 
 	template<class F>
-	typename detail::enable_if_result_void<F(T*)>::type pass_c_str(F&& func) const {
-		const bool use_heap = sz >= 1024;
-		T* buf = use_heap ? new T[sz+1] : reinterpret_cast<T*>(alloca(sz+1));
+	typename std::result_of<F(T*)>::type pass_c_str(F&& func) const {
+		std::unique_ptr<T[]> heap_buf;
+		T* buf;
+		
+		if((sz * sizeof(T)) >= detail::STR_REF_ALLOCA_LIMIT){
+			heap_buf = std::unique_ptr<T[]>(new T[sz+1]);
+			buf = heap_buf.get();
+		} else {
+			buf = reinterpret_cast<T*>(alloca((sz+1)*sizeof(T)));
+		}
+
 		memcpy(buf, p, sz * sizeof(T));
 		buf[sz] = 0;
 
-		func(buf);
-		
-		if(use_heap) delete [] buf;
-	}
-	
-	template<class F>
-	typename detail::enable_if_result_not_void<F(T*)>::type pass_c_str(F&& func) const {
-		const bool use_heap = sz >= 1024;
-		T* buf = use_heap ? new T[sz+1] : reinterpret_cast<T*>(alloca(sz+1));
-		memcpy(buf, p, sz * sizeof(T));
-		buf[sz] = 0;
-
-		typename std::result_of<F(T*)>::type result = func(buf);
-		
-		if(use_heap) delete [] buf;
-		
-		return result;
+		return func(buf);
 	}
 
 	const T& front() const { return p[0]; }
