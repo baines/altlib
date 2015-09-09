@@ -1,57 +1,74 @@
 #ifndef ALTLIB_STR_COMMON_H_
 #define ALTLIB_STR_COMMON_H_
-#include "str_ref.h"
+#include <algorithm>
 
 namespace alt {
+
+template<class T> struct TStrRef;
+
 namespace detail {
 
-template<class T>
-T* str_find(const TStrRef<typename std::remove_const<T>::type>& needle, T* begin, T* end, int inc){
-	using U = typename std::remove_const<T>::type;
+template<class T, class S>
+class TStrCommon {
+protected:
+	using ref_t = TStrRef<typename std::remove_const<T>::type>;
 
-	const size_t _sz = needle.size();
-	const T* _end = begin + _sz;
+	T* find(const ref_t& needle, T* b, T* e) const {
+		return std::search(b, e, needle.begin(), needle.end());
+	}	
+	T* find(const ref_t& needle, T* b) const { return find(needle, b, end()); }
+	T* find(const ref_t& needle) const { return find(needle, begin(), end()); }
 	
-	while(_end != (end + inc)){
-		if(TStrRef<U>(begin, _end) == needle) return begin;
-		begin += inc;
-		_end += inc;
+	T* rfind(const ref_t& needle, T* b, T* e) const {
+		return std::search(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			needle.rbegin(),
+			needle.rend()
+		).base() - needle.size();
 	}
+	T* rfind(const ref_t& needle, T* b) const { return rfind(needle, b, begin()); }
+	T* rfind(const ref_t& needle) const { return rfind(needle, end(), begin()); }
 	
-	return nullptr;
-}
-
-template<class T>
-T* str_find_any(const TStrRef<typename std::remove_const<T>::type>& chars, T* begin, T* end, int inc){
-	for(T* p = begin; p != (end + inc); p += inc){
-		for(T c : chars){
-			if(*p == c) return p;
-		}
+	T* find_any(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(b, e, chars.begin(), chars.end());
 	}
-	return nullptr;
-}
+	T* find_any(const ref_t& needle, T* b) const { return find_any(needle, b, end()); }
+	T* find_any(const ref_t& needle) const { return find_any(needle, begin(), end()); }
 
-}
+	T* find_not(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(b, e, chars.begin(), chars.end(), std::not_equal_to<T>());
+	}
+	T* find_not(const ref_t& needle, T* b) const { return find_not(needle, b, end()); }
+	T* find_not(const ref_t& needle) const { return find_not(needle, begin(), end()); }
 
-template<class T>
-const T* TStrRef<T>::find(const TStrRef<T>& needle, size_t offset) const {
-	return detail::str_find<const T>(needle, begin() + offset, end(), +1);
-}
+	T* rfind_any(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			chars.begin(),
+			chars.end()
+		).base() - 1;
+	}
+	T* rfind_any(const ref_t& needle, T* b) const { return rfind_any(needle, b, begin()); }
+	T* rfind_any(const ref_t& needle) const { return rfind_any(needle, end(), begin()); }
 
-template<class T>
-const T* TStrRef<T>::rfind(const TStrRef<T>& needle, size_t offset) const {
-	const size_t _sz = needle.size();
-	return detail::str_find<const T>(needle, end() - _sz - offset, begin() + _sz, -1);
-}
+	T* rfind_not(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		).base() - 1;
+	}
+	T* rfind_not(const ref_t& needle, T* b) const { return rfind_not(needle, b, begin()); }
+	T* rfind_not(const ref_t& needle) const { return rfind_not(needle, end(), begin()); }
+private:
+	T* begin() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->begin()); }
+	T* end() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->end()); }
+};
 
-template<class T>
-const T* TStrRef<T>::find_any(const TStrRef<T>& chars, size_t offset) const {
-	return detail::str_find_any<const T>(chars, begin() + offset, end(), +1);
-}
-
-template<class T>
-const T* TStrRef<T>::rfind_any(const TStrRef<T>& chars, size_t offset) const {
-	return detail::str_find_any<const T>(chars, end() - offset, begin(), -1);
 }
 
 }

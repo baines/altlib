@@ -22,7 +22,7 @@ namespace detail {
 }
 
 template<class T>
-class TStrMut {
+class TStrMut : public detail::TStrCommon<T, TStrMut<T>> {
 	static constexpr size_t LOCAL_SZ = (28 - sizeof(T*)) / sizeof(T);
 public:
 	TStrMut() : ptr(local_str), used_size(0) {}
@@ -31,7 +31,7 @@ public:
 	TStrMut(const T (&ref)[N], typename std::enable_if<!(N <= LOCAL_SZ)>::type* = 0)
 	: ptr(new T[detail::get_next_size(0, N)])
 	, used_size(N-1)
-	, allocated_size(N) {
+	, allocated_size(detail::get_next_size(0, N)) {
 		memcpy(ptr, &ref, N * sizeof(T));
 	}
 
@@ -43,12 +43,12 @@ public:
 	}
 	
 	TStrMut(const T* t, size_t sz)
-	: ptr(sz > LOCAL_SZ ? new T[detail::get_next_size(0, sz+1)] : local_str)
+	: ptr(sz >= LOCAL_SZ ? new T[detail::get_next_size(0, sz+1)] : local_str)
 	, used_size(sz){
 		memcpy(ptr, t, sz * sizeof(T));
 		ptr[used_size] = 0;
 		if(ptr != local_str){
-			allocated_size = sz+1;
+			allocated_size = detail::get_next_size(0, sz+1);
 		}
 	}
 	
@@ -60,6 +60,7 @@ public:
 		used_size = other.size();
 		
 		if(other.ptr != other.local_str){
+			if(ptr != local_str) delete [] ptr;
 			ptr = other.ptr;
 			allocated_size = other.allocated_size;
 			
@@ -67,7 +68,12 @@ public:
 		} else {
 			reserve(used_size);
 			memcpy(ptr, other.ptr, other.used_size * sizeof(T));
+			ptr[used_size] = 0;
 		}
+
+		other.clear();
+
+		return *this;
 	}
 	
 	TStrMut<T>& operator=(const TStrMut<T>& other){
@@ -75,6 +81,12 @@ public:
 		reserve(used_size);
 		memcpy(ptr, other.c_str(), used_size * sizeof(T));
 		ptr[used_size] = 0;
+
+		return *this;
+	}
+
+	TStrMut<T>& assign(const TStrRef<T>& other){
+		return (*this) = other;
 	}
 	
 	template<size_t N>
@@ -83,10 +95,14 @@ public:
 		reserve(used_size);
 		memcpy(ptr, &other, used_size * sizeof(T));
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 		
-	void clear(){
+	TStrMut<T>& clear(){
 		used_size = 0;
+		*ptr = 0;
+		return *this;
 	}
 	
 	void reserve(size_t amount){
@@ -103,34 +119,42 @@ public:
 		}
 	}
 		
-	void insert(size_t index, const TStrRef<T>& str){
+	TStrMut<T>& insert(size_t index, const TStrRef<T>& str){
 		const size_t _sz = str.size();
 		reserve(used_size + _sz);
 		memmove(ptr + index + _sz, ptr + index, (used_size - index) * sizeof(T));
 		memcpy(ptr + index, str.data(), _sz * sizeof(T));
 		used_size += _sz;
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 	
-	void erase(size_t index, size_t count){
+	TStrMut<T>& erase(size_t index, size_t count){
 		erase(ptr + index, ptr + index + count);
+
+		return *this;
 	}
 	
-	void erase(T* _begin, T* _end){
+	TStrMut<T>& erase(T* _begin, T* _end){
 		memmove(_begin, _end, (end() - _end) * sizeof(T));
 		used_size -= _end - _begin;
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 	
-	void append(const TStrRef<T>& str){
+	TStrMut<T>& append(const TStrRef<T>& str){
 		const size_t _sz = str.size();
 		reserve(used_size + _sz);
 		memcpy(ptr + used_size, str.data(), _sz * sizeof(T));
 		used_size += _sz;
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 	
-	void append(std::initializer_list<TStrRef<T>> strs){
+	TStrMut<T>& append(std::initializer_list<TStrRef<T>> strs){
 		const size_t total = std::accumulate(strs.begin(), strs.end(), used_size,
 		[](size_t a, const TStrRef<T>& b){
 			return a + b.size();
@@ -145,9 +169,11 @@ public:
 		}
 		
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 	
-	void append(size_t num, const TStrRef<T>& str){
+	TStrMut<T>& append(size_t num, const TStrRef<T>& str){
 		const size_t _sz = str.size();
 		const T* _data = str.data();
 		
@@ -157,9 +183,11 @@ public:
 			used_size += _sz;
 		}
 		ptr[used_size] = 0;
+
+		return *this;
 	}
 		
-	void replace(size_t index, size_t count, const TStrRef<T>& str){
+	TStrMut<T>& replace(size_t index, size_t count, const TStrRef<T>& str){
 		const size_t _sz = str.size();
 		const int diff = _sz - count;
 
@@ -171,28 +199,22 @@ public:
 			ptr[used_size] = 0;
 		}
 		memcpy(_begin, str.data(), _sz * sizeof(T));
+
+		return *this;
 	}
 	
-	void replace(T* _begin, T* _end, const TStrRef<T>& str){
+	TStrMut<T>& replace(T* _begin, T* _end, const TStrRef<T>& str){
 		replace(_begin - ptr, _end - _begin, str);
-	}
-		
-	char* find(const TStrRef<T>& needle, size_t offset = 0){
-		return detail::str_find(needle, begin() + offset, end(), +1);
+
+		return *this;
 	}
 	
-	char* rfind(const TStrRef<T>& needle, size_t offset = 0){
-		const size_t _sz = needle.size();
-		return detail::str_find(needle, end() - _sz - offset, begin() + _sz - 1, -1);
-	}
-	
-	char* find_any(const TStrRef<T>& chars, size_t offset = 0){
-		return detail::str_find_any(chars, begin() + offset, end(), +1);
-	}
-	
-	char* rfind_any(const TStrRef<T>& chars, size_t offset = 0){
-		return detail::str_find_any(chars, end() - offset, begin(), -1);
-	}
+	using detail::TStrCommon<T, TStrMut<T>>::find;	
+	using detail::TStrCommon<T, TStrMut<T>>::rfind;
+	using detail::TStrCommon<T, TStrMut<T>>::find_any;
+	using detail::TStrCommon<T, TStrMut<T>>::rfind_any;
+	using detail::TStrCommon<T, TStrMut<T>>::find_not;
+	using detail::TStrCommon<T, TStrMut<T>>::rfind_not;
 	
 	bool cmp(const TStrRef<T>& other) const {
 		return size() == other.size() && memcmp(ptr, other.data(), size() * sizeof(T)) == 0;
@@ -207,17 +229,30 @@ public:
 	TStrRef<T> substr(const T* begin, const T* end) const {
 		return TStrRef<T>(begin, end);
 	}
-	
-	operator TStrRef<T>() { return TStrRef<T>(ptr, used_size); }
-	
+
+	bool empty() const { return used_size == 0; }
+
 	T* c_str() const { return ptr; }
+
 	T* data(){ return ptr; }
+	const T* data() const { return ptr; }
+
 	T* begin(){ return ptr; }
+	const T* begin() const { return ptr; }
+
 	T* end(){ return ptr + used_size; }
+	const T* end() const { return ptr + used_size; }
+
+	std::reverse_iterator<T*> rbegin(){ return std::reverse_iterator<T*>(end()); }
+	std::reverse_iterator<T*> rend(){ return std::reverse_iterator<T*>(begin()); }
 	
 	constexpr size_t size() const { return used_size; }
 	
 	T& operator[](size_t index){ return ptr[index]; }
+	const T& operator[](size_t index) const { return ptr[index]; }
+
+	T& front(){ return *ptr; }
+	T& back(){ return ptr[used_size-1]; }
 	
 	~TStrMut(){
 		if(ptr != local_str) delete [] ptr;
@@ -235,6 +270,9 @@ private:
 using StrMut   = TStrMut<char>;
 using StrMut16 = TStrMut<char16_t>;
 using StrMut32 = TStrMut<char32_t>;
+
+template<class T>
+constexpr TStrRef<T>::TStrRef(const TStrMut<T>& str) : p(str.data()), sz(str.size()){}
 
 }
 

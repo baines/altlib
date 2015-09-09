@@ -69,13 +69,13 @@ int main(void){
 		"this is a test"
 	);
 	
-	TEST_EQ(c, = str.find ('i'),      str.begin() + 2);
-	TEST_EQ(c, = str.rfind('i'),      str.begin() + 5);
-	TEST_EQ(c, = str.find ("is", 3),  str.begin() + 5);
-	TEST_EQ(c, = str.rfind("is", 9),  str.begin() + 2);
-	TEST_EQ(c, = str.find_any ("as"), str.begin() + 3);
-	TEST_EQ(c, = str.rfind_any("as"), str.begin() + 12);
-	TEST_EQ(c, = str.find('z'),       (void*)NULL);
+	TEST_EQ(c, = str.find ('i'),            str.begin() + 2);
+	TEST_EQ(c, = str.rfind('i'),            str.begin() + 5);
+	TEST_EQ(c, = str.find ("is", &str[3]),  str.begin() + 5);
+	TEST_EQ(c, = str.rfind("is", &str[5]),  str.begin() + 2);
+	TEST_EQ(c, = str.find_any ("as"),       str.begin() + 3);
+	TEST_EQ(c, = str.rfind_any("as"),       str.begin() + 12);
+	TEST_EQ(c, = str.find('z'),             str.end());
 	
 	puts("All Tests passed.");
 	

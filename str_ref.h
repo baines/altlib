@@ -2,6 +2,7 @@
 #define ALTLIB_STR_REF_H_
 #include <cstring>
 #include <memory>
+#include "str_common.h"
 
 namespace alt {
 namespace detail {
@@ -15,8 +16,10 @@ namespace detail {
 	static const size_t STR_REF_ALLOCA_LIMIT = 1024;
 }
 
+template<class T> struct TStrMut;
+
 template<class T>
-struct TStrRef {
+struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
 
 	typedef T* iterator;
 	typedef const T* const_iterator;
@@ -26,6 +29,8 @@ struct TStrRef {
 	constexpr TStrRef(const T* p, size_t sz) : p(p), sz(sz){}
 	constexpr TStrRef(const T* a, const T* b) : p(a), sz(b - a){}
 	constexpr TStrRef(const T& c) : p(&c), sz(1){}
+
+	constexpr TStrRef(const TStrMut<T>& str);
 
 	template<size_t N>
 	constexpr TStrRef(const T (&p)[N]) : p(p), sz(N-1){}
@@ -54,11 +59,13 @@ struct TStrRef {
 	const T& front() const { return p[0]; }
 	const T& back() const { return p[sz-1]; }
 	
-	const T* find(const TStrRef<T>& needle, size_t offset = 0) const;	
-	const T* rfind(const TStrRef<T>& needle, size_t offset = 0) const;
-	const T* find_any(const TStrRef<T>& chars, size_t offset = 0) const;
-	const T* rfind_any(const TStrRef<T>& chars, size_t offset = 0) const;
-
+	using detail::TStrCommon<const T, TStrRef<T>>::find;	
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind;
+	using detail::TStrCommon<const T, TStrRef<T>>::find_any;
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind_any;
+	using detail::TStrCommon<const T, TStrRef<T>>::find_not;
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind_not;
+	
 	void remove_prefix(size_t n){
 		size_t min_sz = std::min(sz, n);
 		p += min_sz;
@@ -79,6 +86,8 @@ struct TStrRef {
 	constexpr const T* data() const { return p; }
 	constexpr const T* begin() const { return p; }
 	constexpr const T* end() const { return p + sz; }
+	constexpr std::reverse_iterator<const T*> rbegin() const { return std::reverse_iterator<const T*>(end()); }
+	constexpr std::reverse_iterator<const T*> rend() const { return std::reverse_iterator<const T*>(begin()); }
 	constexpr const T& operator[](size_t i){ return p[i]; }
 	
 	constexpr size_t size() const { return sz; }
