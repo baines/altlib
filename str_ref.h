@@ -16,7 +16,7 @@ namespace detail {
 	static const size_t STR_REF_ALLOCA_LIMIT = 1024;
 }
 
-template<class T> struct TStrMut;
+template<class T> class TStrMut;
 
 template<class T>
 struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
@@ -88,7 +88,7 @@ struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
 	constexpr const T* end() const { return p + sz; }
 	constexpr std::reverse_iterator<const T*> rbegin() const { return std::reverse_iterator<const T*>(end()); }
 	constexpr std::reverse_iterator<const T*> rend() const { return std::reverse_iterator<const T*>(begin()); }
-	constexpr const T& operator[](size_t i){ return p[i]; }
+	constexpr const T& operator[](size_t i) const { return p[i]; }
 	
 	constexpr size_t size() const { return sz; }
 	constexpr int sizei() const { return static_cast<int>(sz); }

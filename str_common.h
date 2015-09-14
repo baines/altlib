@@ -1,6 +1,7 @@
 #ifndef ALTLIB_STR_COMMON_H_
 #define ALTLIB_STR_COMMON_H_
 #include <algorithm>
+#include <functional>
 
 namespace alt {
 
