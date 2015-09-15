@@ -1,5 +1,5 @@
-#include "../str_mut.h"
-#include "../str_iostream_compat.h"
+#define ALT_STR_IOSTREAM 1
+#include "../alt_str.h"
 #include <cstdio>
 #include <cassert>
 #include <iostream>

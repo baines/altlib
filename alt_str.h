@@ -1,14 +1,189 @@
-#ifndef ALTLIB_STR_MUT_H_
-#define ALTLIB_STR_MUT_H_
-#include <cstring>
-#include <type_traits>
-#include <numeric>
+#ifndef ALT_STR_H_
+#define ALT_STR_H_
 #include <algorithm>
+#include <functional>
+#include <cstring>
 #include <cstdint>
-#include "str_common.h"
-#include "str_ref.h"
+#include <memory>
+#include <numeric>
+#include <type_traits>
 
 namespace alt {
+
+/********************************************************
+   Common base class containing find() functionality
+********************************************************/
+
+template<class T> struct TStrRef;
+
+namespace detail {
+
+template<class T, class S>
+class TStrCommon {
+protected:
+	using ref_t = TStrRef<typename std::remove_const<T>::type>;
+
+	T* find(const ref_t& needle, T* b, T* e) const {
+		return std::search(b, e, needle.begin(), needle.end());
+	}	
+	T* find(const ref_t& needle, T* b) const { return find(needle, b, end()); }
+	T* find(const ref_t& needle) const { return find(needle, begin(), end()); }
+	
+	T* rfind(const ref_t& needle, T* b, T* e) const {
+		return std::search(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			needle.rbegin(),
+			needle.rend()
+		).base() - needle.size();
+	}
+	T* rfind(const ref_t& needle, T* b) const { return rfind(needle, b, begin()); }
+	T* rfind(const ref_t& needle) const { return rfind(needle, end(), begin()); }
+	
+	T* find_any(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(b, e, chars.begin(), chars.end());
+	}
+	T* find_any(const ref_t& needle, T* b) const { return find_any(needle, b, end()); }
+	T* find_any(const ref_t& needle) const { return find_any(needle, begin(), end()); }
+
+	T* find_not(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(b, e, chars.begin(), chars.end(), std::not_equal_to<T>());
+	}
+	T* find_not(const ref_t& needle, T* b) const { return find_not(needle, b, end()); }
+	T* find_not(const ref_t& needle) const { return find_not(needle, begin(), end()); }
+
+	T* rfind_any(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			chars.begin(),
+			chars.end()
+		).base() - 1;
+	}
+	T* rfind_any(const ref_t& needle, T* b) const { return rfind_any(needle, b, begin()); }
+	T* rfind_any(const ref_t& needle) const { return rfind_any(needle, end(), begin()); }
+
+	T* rfind_not(const ref_t& chars, T* b, T* e) const {
+		return std::find_first_of(
+			std::reverse_iterator<T*>(b),
+			std::reverse_iterator<T*>(e),
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		).base() - 1;
+	}
+	T* rfind_not(const ref_t& needle, T* b) const { return rfind_not(needle, b, begin()); }
+	T* rfind_not(const ref_t& needle) const { return rfind_not(needle, end(), begin()); }
+private:
+	T* begin() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->begin()); }
+	T* end() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->end()); }
+};
+
+}
+
+/********************************************************
+   StrRef, StrRef16, StrRef32 - Immutable string types
+********************************************************/
+
+namespace detail {
+	template<class T>
+	size_t StrLen(const T* ptr){
+		const T* p = ptr;
+		while(*p) ++p;
+		return p - ptr;
+	}
+
+	static const size_t STR_REF_ALLOCA_LIMIT = 1024;
+}
+
+template<class T> class TStrMut;
+
+template<class T>
+struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
+
+	typedef T* iterator;
+	typedef const T* const_iterator;
+
+	TStrRef() = default;
+	
+	constexpr TStrRef(const T* p, size_t sz) : p(p), sz(sz){}
+	constexpr TStrRef(const T* a, const T* b) : p(a), sz(b - a){}
+	constexpr TStrRef(const T& c) : p(&c), sz(1){}
+
+	constexpr TStrRef(const TStrMut<T>& str);
+
+	template<size_t N>
+	constexpr TStrRef(const T (&p)[N]) : p(p), sz(N-1){}
+
+	template<class U>
+	constexpr TStrRef(const U* const& p) : p(p), sz(detail::StrLen<T>(p)){}
+
+	template<class F>
+	typename std::result_of<F(T*)>::type pass_c_str(F&& func) const {
+		std::unique_ptr<T[]> heap_buf;
+		T* buf;
+		
+		if((sz * sizeof(T)) >= detail::STR_REF_ALLOCA_LIMIT){
+			heap_buf = std::unique_ptr<T[]>(new T[sz+1]);
+			buf = heap_buf.get();
+		} else {
+			buf = reinterpret_cast<T*>(alloca((sz+1)*sizeof(T)));
+		}
+
+		memcpy(buf, p, sz * sizeof(T));
+		buf[sz] = 0;
+
+		return func(buf);
+	}
+
+	const T& front() const { return p[0]; }
+	const T& back() const { return p[sz-1]; }
+	
+	using detail::TStrCommon<const T, TStrRef<T>>::find;	
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind;
+	using detail::TStrCommon<const T, TStrRef<T>>::find_any;
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind_any;
+	using detail::TStrCommon<const T, TStrRef<T>>::find_not;
+	using detail::TStrCommon<const T, TStrRef<T>>::rfind_not;
+	
+	void remove_prefix(size_t n){
+		size_t min_sz = std::min(sz, n);
+		p += min_sz;
+		sz -= min_sz;	
+	}
+
+	void remove_suffix(size_t n){
+		sz = std::max<ssize_t>(0, sz - n);
+	}
+	
+	bool cmp(const TStrRef<T>& other) const {
+		return size() == other.size() && memcmp(p, other.data(), size() * sizeof(T)) == 0;
+	}
+	
+	bool operator==(const TStrRef<T>& other) const { return cmp(other); }
+	bool operator!=(const TStrRef<T>& other) const { return !cmp(other); }
+	
+	constexpr const T* data() const { return p; }
+	constexpr const T* begin() const { return p; }
+	constexpr const T* end() const { return p + sz; }
+	constexpr std::reverse_iterator<const T*> rbegin() const { return std::reverse_iterator<const T*>(end()); }
+	constexpr std::reverse_iterator<const T*> rend() const { return std::reverse_iterator<const T*>(begin()); }
+	constexpr const T& operator[](size_t i) const { return p[i]; }
+	
+	constexpr size_t size() const { return sz; }
+	constexpr int sizei() const { return static_cast<int>(sz); }
+private:
+	const T* p;
+	size_t sz;
+};
+
+using StrRef   = TStrRef<char>;
+using StrRef16 = TStrRef<char16_t>;
+using StrRef32 = TStrRef<char32_t>;
+
+/********************************************************
+   StrMut, StrMut16, StrMut32 - Mutable string types
+********************************************************/
 
 namespace detail {
 
@@ -276,4 +451,29 @@ constexpr TStrRef<T>::TStrRef(const TStrMut<T>& str) : p(str.data()), sz(str.siz
 
 }
 
+/********************************************************************
+   Iostream << compat stuff, define ALT_STR_IOSTREAM if you want it
+********************************************************************/
+
+#ifdef ALT_STR_IOSTREAM
+#include <iostream>
+
+namespace alt {
+
+template<class T>
+std::ostream& operator<<(std::ostream& stream, const TStrRef<T>& str){
+	str.pass_c_str([&](T* cstr){
+		stream << cstr;
+	});
+}
+
+template<class T>
+std::ostream& operator<<(std::ostream& stream, const TStrMut<T>& str){
+	stream << str.c_str();
+}
+
+}
 #endif
+
+#endif
+
