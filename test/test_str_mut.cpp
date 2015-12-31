@@ -62,20 +62,20 @@ int main(void){
 		"Hi friend. What's up?"
 	);
 	
-	char* c;
+	size_t c;
 	
 	TEST_EQ(str,
 		= "this is a test",
 		"this is a test"
 	);
 	
-	TEST_EQ(c, = str.find ('i'),            str.begin() + 2);
-	TEST_EQ(c, = str.rfind('i'),            str.begin() + 5);
-	TEST_EQ(c, = str.find ("is", &str[3]),  str.begin() + 5);
-	TEST_EQ(c, = str.rfind("is", &str[5]),  str.begin() + 2);
-	TEST_EQ(c, = str.find_any ("as"),       str.begin() + 3);
-	TEST_EQ(c, = str.rfind_any("as"),       str.begin() + 12);
-	TEST_EQ(c, = str.find('z'),             str.end());
+	TEST_EQ(c, = str.find ('i'),      2);
+	TEST_EQ(c, = str.rfind('i'),      5);
+	TEST_EQ(c, = str.find ("is", 3),  5);
+	TEST_EQ(c, = str.rfind("is", 4),  2);
+	TEST_EQ(c, = str.find_any ("as"), 3);
+	TEST_EQ(c, = str.rfind_any("as"), 12);
+	TEST_EQ(c, = str.find('z'),       str.size());
 	
 	puts("All Tests passed.");
 	

@@ -11,81 +11,11 @@
 namespace alt {
 
 /********************************************************
-   Common base class containing find() functionality
-********************************************************/
-
-template<class T> struct TStrRef;
-
-namespace detail {
-
-template<class T, class S>
-class TStrCommon {
-protected:
-	using ref_t = TStrRef<typename std::remove_const<T>::type>;
-
-	T* find(const ref_t& needle, T* b, T* e) const {
-		return std::search(b, e, needle.begin(), needle.end());
-	}	
-	T* find(const ref_t& needle, T* b) const { return find(needle, b, end()); }
-	T* find(const ref_t& needle) const { return find(needle, begin(), end()); }
-	
-	T* rfind(const ref_t& needle, T* b, T* e) const {
-		return std::search(
-			std::reverse_iterator<T*>(b),
-			std::reverse_iterator<T*>(e),
-			needle.rbegin(),
-			needle.rend()
-		).base() - needle.size();
-	}
-	T* rfind(const ref_t& needle, T* b) const { return rfind(needle, b, begin()); }
-	T* rfind(const ref_t& needle) const { return rfind(needle, end(), begin()); }
-	
-	T* find_any(const ref_t& chars, T* b, T* e) const {
-		return std::find_first_of(b, e, chars.begin(), chars.end());
-	}
-	T* find_any(const ref_t& needle, T* b) const { return find_any(needle, b, end()); }
-	T* find_any(const ref_t& needle) const { return find_any(needle, begin(), end()); }
-
-	T* find_not(const ref_t& chars, T* b, T* e) const {
-		return std::find_first_of(b, e, chars.begin(), chars.end(), std::not_equal_to<T>());
-	}
-	T* find_not(const ref_t& needle, T* b) const { return find_not(needle, b, end()); }
-	T* find_not(const ref_t& needle) const { return find_not(needle, begin(), end()); }
-
-	T* rfind_any(const ref_t& chars, T* b, T* e) const {
-		return std::find_first_of(
-			std::reverse_iterator<T*>(b),
-			std::reverse_iterator<T*>(e),
-			chars.begin(),
-			chars.end()
-		).base() - 1;
-	}
-	T* rfind_any(const ref_t& needle, T* b) const { return rfind_any(needle, b, begin()); }
-	T* rfind_any(const ref_t& needle) const { return rfind_any(needle, end(), begin()); }
-
-	T* rfind_not(const ref_t& chars, T* b, T* e) const {
-		return std::find_first_of(
-			std::reverse_iterator<T*>(b),
-			std::reverse_iterator<T*>(e),
-			chars.begin(),
-			chars.end(),
-			std::not_equal_to<T>()
-		).base() - 1;
-	}
-	T* rfind_not(const ref_t& needle, T* b) const { return rfind_not(needle, b, begin()); }
-	T* rfind_not(const ref_t& needle) const { return rfind_not(needle, end(), begin()); }
-private:
-	T* begin() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->begin()); }
-	T* end() const { return const_cast<T*>(reinterpret_cast<const S*>(this)->end()); }
-};
-
-}
-
-/********************************************************
    StrRef, StrRef16, StrRef32 - Immutable string types
 ********************************************************/
 
 namespace detail {
+
 	template<class T>
 	size_t StrLen(const T* ptr){
 		const T* p = ptr;
@@ -99,7 +29,7 @@ namespace detail {
 template<class T> class TStrMut;
 
 template<class T>
-struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
+struct TStrRef {
 
 	typedef T* iterator;
 	typedef const T* const_iterator;
@@ -136,16 +66,73 @@ struct TStrRef : public detail::TStrCommon<const T, TStrRef<T>> {
 		return func(buf);
 	}
 
-	const T& front() const { return p[0]; }
-	const T& back() const { return p[sz-1]; }
+	constexpr const T& front() const { return p[0]; }
+	constexpr const T& back() const { return p[sz-1]; }
 	
-	using detail::TStrCommon<const T, TStrRef<T>>::find;	
-	using detail::TStrCommon<const T, TStrRef<T>>::rfind;
-	using detail::TStrCommon<const T, TStrRef<T>>::find_any;
-	using detail::TStrCommon<const T, TStrRef<T>>::rfind_any;
-	using detail::TStrCommon<const T, TStrRef<T>>::find_not;
-	using detail::TStrCommon<const T, TStrRef<T>>::rfind_not;
+	bool contains(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return find(needle, b, e) != sz;
+	}
 	
+	bool contains_not(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return find_not(needle, b, e) != sz;
+	}
+
+	size_t find(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return std::search(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, sz),
+			needle.begin(),
+			needle.end()
+		) - begin();
+	}	
+	
+	size_t rfind(const TStrRef<T>& needle, size_t b = -1, size_t e = 0) const {
+		return (std::search(
+			rend() - std::min<uint32_t>(b, sz),
+			rend() - e,
+			needle.rbegin(),
+			needle.rend()
+		).base() - needle.size()) - begin();
+	}
+	
+	size_t find_any(const TStrRef<T>& chars, size_t b = 0, size_t e = -1) const {
+		return std::find_first_of(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, sz),
+			chars.begin(),
+			chars.end()
+		) - begin();
+	}
+
+	size_t rfind_any(const TStrRef<T>& chars, size_t b = -1, size_t e = 0) const {
+		return (std::find_first_of(
+			rend() - std::min<uint32_t>(b, sz),
+			rend() - e,
+			chars.begin(),
+			chars.end()
+		).base() - 1) - begin();
+	}
+
+	size_t find_not(const TStrRef<T>& chars, size_t b = 0, size_t e = -1) const {
+		return std::find_first_of(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, sz),
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		) - begin();
+	}
+
+	size_t rfind_not(const TStrRef<T>& chars, size_t b = -1, size_t e = 0) const {
+		return (std::find_first_of(
+			rend() - std::min<uint32_t>(b, sz),
+			rend() - e,
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		).base() - 1) - begin();
+	}
+		
 	void remove_prefix(size_t n){
 		size_t min_sz = std::min(sz, n);
 		p += min_sz;
@@ -197,7 +184,7 @@ namespace detail {
 }
 
 template<class T>
-class TStrMut : public detail::TStrCommon<T, TStrMut<T>> {
+class TStrMut {
 	static constexpr size_t LOCAL_SZ = (28 - sizeof(T*)) / sizeof(T);
 public:
 	TStrMut() : ptr(local_str), used_size(0) {}
@@ -383,13 +370,70 @@ public:
 
 		return *this;
 	}
+
+	bool contains(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return find(needle, b, e) != used_size;
+	}
 	
-	using detail::TStrCommon<T, TStrMut<T>>::find;	
-	using detail::TStrCommon<T, TStrMut<T>>::rfind;
-	using detail::TStrCommon<T, TStrMut<T>>::find_any;
-	using detail::TStrCommon<T, TStrMut<T>>::rfind_any;
-	using detail::TStrCommon<T, TStrMut<T>>::find_not;
-	using detail::TStrCommon<T, TStrMut<T>>::rfind_not;
+	bool contains_not(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return find_not(needle, b, e) != used_size;
+	}
+
+	size_t find(const TStrRef<T>& needle, size_t b = 0, size_t e = -1) const {
+		return std::search(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, used_size),
+			needle.begin(),
+			needle.end()
+		) - begin();
+	}	
+	
+	size_t rfind(const TStrRef<T>& needle, size_t b = -1, size_t e = 0) const {
+		return (std::search(
+			rend() - std::min<uint32_t>(b, used_size),
+			rend() - e,
+			needle.rbegin(),
+			needle.rend()
+		).base() - needle.size()) - begin();
+	}
+	
+	size_t find_any(const TStrRef<T>& chars, size_t b = 0, size_t e = -1) const {
+		return std::find_first_of(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, used_size),
+			chars.begin(),
+			chars.end()
+		) - begin();
+	}
+
+	size_t rfind_any(const TStrRef<T>& chars, size_t b = -1, size_t e = 0) const {
+		return (std::find_first_of(
+			rend() - std::min<uint32_t>(b, used_size),
+			rend() - e,
+			chars.begin(),
+			chars.end()
+		).base() - 1) - begin();
+	}
+
+	size_t find_not(const TStrRef<T>& chars, size_t b = 0, size_t e = -1) const {
+		return std::find_first_of(
+			begin() + b,
+			begin() + std::min<uint32_t>(e, used_size),
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		) - begin();
+	}
+
+	size_t rfind_not(const TStrRef<T>& chars, size_t b = -1, size_t e = 0) const {
+		return (std::find_first_of(
+			rend() - std::min<uint32_t>(b, used_size),
+			rend() - e,
+			chars.begin(),
+			chars.end(),
+			std::not_equal_to<T>()
+		).base() - 1) - begin();
+	}
 	
 	bool cmp(const TStrRef<T>& other) const {
 		return size() == other.size() && memcmp(ptr, other.data(), size() * sizeof(T)) == 0;
@@ -412,22 +456,18 @@ public:
 	T* data(){ return ptr; }
 	const T* data() const { return ptr; }
 
-	T* begin(){ return ptr; }
-	const T* begin() const { return ptr; }
+	constexpr T* begin(){ return ptr; }
+	constexpr T* end(){ return ptr + used_size; }
 
-	T* end(){ return ptr + used_size; }
-	const T* end() const { return ptr + used_size; }
-
-	std::reverse_iterator<T*> rbegin(){ return std::reverse_iterator<T*>(end()); }
-	std::reverse_iterator<T*> rend(){ return std::reverse_iterator<T*>(begin()); }
+	constexpr std::reverse_iterator<T*> rbegin(){ return std::reverse_iterator<T*>(end()); }
+	constexpr std::reverse_iterator<T*> rend(){ return std::reverse_iterator<T*>(begin()); }
 	
 	constexpr size_t size() const { return used_size; }
 	
-	T& operator[](size_t index){ return ptr[index]; }
-	const T& operator[](size_t index) const { return ptr[index]; }
+	constexpr T& operator[](size_t index){ return ptr[index]; }
 
-	T& front(){ return *ptr; }
-	T& back(){ return ptr[used_size-1]; }
+	constexpr T& front(){ return *ptr; }
+	constexpr T& back(){ return ptr[used_size-1]; }
 	
 	~TStrMut(){
 		if(ptr != local_str) delete [] ptr;
