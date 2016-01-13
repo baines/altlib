@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cassert>
 #include <iostream>
+#include <algorithm>
 
 #define TEST_EQ(obj, code, expect) ({ \
 	printf("Testing [ %-55s]... ", #obj " " #code); \
