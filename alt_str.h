@@ -280,7 +280,7 @@ public:
 		used_size = other.size();
 		
 		if(other.ptr != other.local_str){
-			if(ptr != local_str) delete [] ptr;
+			if(ptr != local_str) ALT_STR_FREE(ptr);
 			ptr = other.ptr;
 			allocated_size = other.allocated_size;
 			
@@ -545,7 +545,7 @@ public:
 	constexpr T& back(){ return ptr[used_size-1]; }
 	
 	~TStrMut(){
-		if(ptr != local_str) delete [] ptr;
+		if(ptr != local_str) ALT_STR_FREE(ptr);
 	}
 private:
 	T* ptr;
