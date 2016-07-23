@@ -1,2 +1,4 @@
 /test/benchmark
 /test/test_str_mut
+/test/test_array
+/test/test_math
