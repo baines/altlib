@@ -151,7 +151,7 @@ struct TStrRef {
 		const size_t max_sz = detail::min<uint32_t>(e, sz);
 
 		for(const T* p = ptr + b; p < ptr + max_sz; ++p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c == *p) return p - ptr;
 			}
 		}
@@ -164,7 +164,7 @@ struct TStrRef {
 		const size_t limit  = detail::max<ssize_t>(0, max_sz - 1);
 
 		for(const T* p = ptr + limit; p >= ptr + (e+1); --p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c == *p) return p - ptr;
 			}
 		}
@@ -176,7 +176,7 @@ struct TStrRef {
 		const size_t max_sz = detail::min<uint32_t>(e, sz);
 
 		for(const T* p = ptr + b; p < ptr + max_sz; ++p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c != *p) return p - ptr;
 			}
 		}
@@ -189,7 +189,7 @@ struct TStrRef {
 		const size_t limit  = detail::max<ssize_t>(0, max_sz - 1);
 
 		for(const T* p = ptr + limit; p >= ptr + (e+1); --p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c != *p) return p - ptr;
 			}
 		}
@@ -218,16 +218,16 @@ struct TStrRef {
 		return size() == other.size() && ALT_STR_MEMCMP(ptr, other.data(), size() * sizeof(T)) == 0;
 	}
 	
-	bool operator==(const TStrRef<T>& other) const { return cmp(other); }
-	bool operator!=(const TStrRef<T>& other) const { return !cmp(other); }
+	inline bool operator==(const TStrRef<T>& other) const { return cmp(other); }
+	inline bool operator!=(const TStrRef<T>& other) const { return !cmp(other); }
 	
-	constexpr const T* data() const { return ptr; }
-	constexpr const T* begin() const { return ptr; }
-	constexpr const T* end() const { return ptr + sz; }
-	constexpr const T& operator[](size_t i) const { return ptr[i]; }
+	inline const T* data() const { return ptr; }
+	inline const T* begin() const { return ptr; }
+	inline const T* end() const { return ptr + sz; }
+	inline const T& operator[](size_t i) const { return ptr[i]; }
 	
-	constexpr size_t size() const { return sz; }
-	constexpr int sizei() const { return static_cast<int>(sz); }
+	inline size_t size() const { return sz; }
+	inline int sizei() const { return static_cast<int>(sz); }
 private:
 	const T* ptr;
 	size_t sz;
@@ -467,7 +467,7 @@ public:
 		const size_t max_used_size = detail::min<uint32_t>(e, used_size);
 
 		for(const T* p = ptr + b; p < ptr + max_used_size; ++p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c == *p) return p - ptr;
 			}
 		}
@@ -480,7 +480,7 @@ public:
 		const size_t limit  = detail::max<ssize_t>(0, max_used_size - 1);
 
 		for(const T* p = ptr + limit; p >= ptr + (e+1); --p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c == *p) return p - ptr;
 			}
 		}
@@ -492,7 +492,7 @@ public:
 		const size_t max_used_size = detail::min<uint32_t>(e, used_size);
 
 		for(const T* p = ptr + b; p < ptr + max_used_size; ++p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c != *p) return p - ptr;
 			}
 		}
@@ -505,7 +505,7 @@ public:
 		const size_t limit  = detail::max<ssize_t>(0, max_used_size - 1);
 
 		for(const T* p = ptr + limit; p >= ptr + (e+1); --p){
-			for(char c : chars){
+			for(unsigned char c : chars){
 				if(c != *p) return p - ptr;
 			}
 		}
